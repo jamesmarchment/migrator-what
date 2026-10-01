@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Folder Migration Planner</title>
+  <link rel="icon" href="icons/favicon.ico" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="57x57" href="icons/apple-touch-icon-57x57.png" />
+  <link rel="apple-touch-icon" sizes="72x72" href="icons/apple-touch-icon-72x72.png" />
+  <link rel="apple-touch-icon" sizes="76x76" href="icons/apple-touch-icon-76x76.png" />
+  <link rel="apple-touch-icon" sizes="114x114" href="icons/apple-touch-icon-114x114.png" />
+  <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120x120.png" />
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/apple-touch-icon-144x144.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180x180.png" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div id="toolbar">
+    <div class="menu-wrap">
+      <button id="btn-menu" aria-haspopup="true" aria-expanded="false">☰ Menu</button>
+      <button id="btn-save-plan-toolbar">💾</button>
+      <div id="toolbar-menu" hidden>
+        <button id="btn-open-source">Open source.json…</button>
+        <button id="btn-open-plan">Open plan…</button>
+        <button id="btn-load-structure">Load target structure…</button>
+
+        <div class="menu-divider"></div>
+
+        <button id="btn-save-source" disabled>Save source.json…</button>
+        <button id="btn-save-plan">Save plan</button>
+        <button id="btn-new-plan">New plan</button>
+        <button id="btn-reset-workspace" disabled>Reset workspace</button>
+
+        <div class="menu-divider"></div>
+
+        <div class="menu-submenu">
+          <button type="button" class="menu-submenu-trigger" id="btn-convert-submenu" aria-haspopup="true" aria-expanded="false">
+            <span>Convert…</span><span class="menu-submenu-arrow">▸</span>
+          </button>
+          <div class="menu-submenu-panel" hidden>
+            <button id="btn-import-robocopy">Convert robocopy to JSON</button>
+            <button id="btn-convert-structure-md">Convert structure MD to JSON</button>
+          </div>
+        </div>
+        <div class="menu-submenu">
+          <button type="button" class="menu-submenu-trigger" id="btn-load-facts-submenu" aria-haspopup="true" aria-expanded="false">
+            <span>Load facts data…</span><span class="menu-submenu-arrow">▸</span>
+          </button>
+          <div class="menu-submenu-panel" hidden>
+            <button id="btn-load-dirfacts">Load folder facts (rollup CSV)…</button>
+            <button id="btn-load-extlong">Load file-type breakdown (CSV)…</button>
+          </div>
+        </div>
+
+        <div class="menu-divider"></div>
+
+        <button id="btn-progress">Progress…</button>
+        <button id="btn-export">Export…</button>
+      </div>
+    </div>
+    <div id="stale-threshold-control" hidden>
+      <label for="stale-threshold-days">Stale after</label>
+      <input type="number" id="stale-threshold-days" min="1" step="1" value="1095" />
+      <span>days</span>
+    </div>
+    <span class="spacer"></span>
+    <div id="mini-progress-bar" title="" hidden></div>
+    <span id="facts-partial-warning" hidden
+      title="Facts data was loaded from a partial/interrupted scan -- staleness and contents signals may be unreliable for folders whose subtree wasn't fully walked.">⚠ partial facts scan</span>
+    <span id="save-indicator">no source loaded</span>
+  </div>
+  <div id="resume-banner" hidden>
+    <span>You may have work saved from a previous session.</span>
+    <button type="button" id="btn-resume-banner">▶ Resume last session</button>
+    <button type="button" id="btn-dismiss-banner" title="Dismiss">✕</button>
+  </div>
+  <div id="layout">
+    <div class="pane" id="before-pane">
+      <h2>Before (read-only)</h2>
+      <button type="button" id="link-toggle-before" class="link-toggle" aria-pressed="true"
+        title="Linked: selecting a folder here also reveals it in the After tree. Click to unlink.">🔗</button>
+      <div id="tree-before" class="tree-container"></div>
+    </div>
+    <div class="pane-resizer" id="resize-before-editor" title="Drag to resize"></div>
+    <div class="pane" id="editor-pane">
+      <h2>Review</h2>
+      <div id="editor"></div>
+    </div>
+    <div class="pane-resizer" id="resize-editor-after" title="Drag to resize"></div>
+    <div class="pane" id="after-pane">
+      <h2>After (editable)</h2>
+      <button type="button" id="btn-create-folder-after" class="link-toggle"
+        title="Create a new folder here (under whichever folder is selected below, or top-level if none is)">➕</button>
+      <button type="button" id="link-toggle-after" class="link-toggle" aria-pressed="false"
+        title="Unlinked: selecting a folder here does not move the Before tree's highlight. Click to link.">🔗</button>
+      <div id="tree-after" class="tree-container"></div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input-source" accept="application/json" hidden />
+  <input type="file" id="file-input-plan" accept="application/json" hidden />
+  <input type="file" id="file-input-structure" accept="application/json" hidden />
+  <input type="file" id="file-input-robocopy" accept=".txt" hidden />
+  <input type="file" id="file-input-structure-md" accept=".md" hidden />
+  <input type="file" id="file-input-dirfacts" accept=".csv" hidden />
+  <input type="file" id="file-input-extlong" accept=".csv" hidden />
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

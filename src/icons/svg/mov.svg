@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 711 884">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        font-family: Montserrat-Bold, Montserrat;
+        font-size: 170px;
+        font-weight: 700;
+      }
+
+      .cls-2 {
+        letter-spacing: -.02em;
+      }
+    </style>
+  </defs>
+  <path d="M535.88.1H.41v883.79h710.18V174.8L535.88.1ZM544.3,49.15l117.24,117.24h-117.24V49.15ZM29.14,855.16v-504.51h436.88v-217.41H29.14V28.84h486.43v166.29h166.29v660.04H29.14Z"/>
+  <text class="cls-1" transform="translate(25.92 304.27)"><tspan x="0" y="0">M</tspan><tspan class="cls-2" x="162.35" y="0">O</tspan><tspan x="301.92" y="0">V</tspan></text>
+  <path d="M486.9,581.53c0,72.57-58.83,131.4-131.4,131.4s-131.4-58.83-131.4-131.4,58.83-131.4,131.4-131.4,131.4,58.83,131.4,131.4ZM418.07,597.41c11.95-8.59,8.71-26.04-1.9-33.6l-79.73-56.78c-6.81-4.85-15.44-4.66-22.65-.6-5.66,3.19-10.53,9.87-10.54,18l-.02,113.77c0,8.82,5.3,15.88,12.11,19.19,7.49,3.65,15.69,2.57,22.55-2.35l80.17-57.64Z"/>
+</svg>

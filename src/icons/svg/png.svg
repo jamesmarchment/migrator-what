@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 711 884">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        font-family: Montserrat-Bold, Montserrat;
+        font-size: 180px;
+        font-weight: 700;
+      }
+
+      .cls-2 {
+        fill: #305868;
+      }
+
+      .cls-3 {
+        letter-spacing: 0em;
+      }
+    </style>
+  </defs>
+  <path class="cls-2" d="M535.88.1H.41v883.79h710.18V174.8L535.88.1ZM544.3,49.15l117.24,117.24h-117.24V49.15ZM29.14,855.16v-504.51h436.88v-217.41H29.14V28.84h486.43v166.29h166.29v660.04H29.14Z"/>
+  <text class="cls-1" transform="translate(33.19 304.27)"><tspan class="cls-3" x="0" y="0">P</tspan><tspan x="129.96" y="0">NG</tspan></text>
+  <g>
+    <rect class="cls-2" x="234.46" y="564.6" width="115.38" height="115.38"/>
+    <rect class="cls-2" x="347.16" y="451.9" width="115.38" height="115.38"/>
+  </g>
+</svg>

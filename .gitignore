@@ -1,0 +1,10 @@
+/node_modules/
+.claude/
+notes.txt
+folder-migrator.zip
+source.json
+target-structure-example.json
+test-source.json
+/dist/plan.json
+/dist/source.json
+/dist/target-structure.json
