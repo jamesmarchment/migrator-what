@@ -172,6 +172,28 @@ function setIndicator(text, dirty, { explicit = false } = {}) {
   saveIndicator.classList.toggle("dirty", !!dirty);
 }
 
+// Warns before closing the tab/navigating away while there's unsaved work. Reuses the
+// exact same "dirty" state setIndicator() already tracks everywhere else (the save
+// indicator's `.dirty` class), rather than a second, separately-maintained flag that
+// could drift out of sync with what the UI is actually showing -- the save indicator's
+// current class IS the dirty flag. Note this intentionally stays true even right after
+// an IndexedDB autosave (see store.subscribe above, and io.js's own "crash protection
+// only; explicit Save/Open is authoritative" comment): the in-memory/autosaved state is
+// recoverable via "Resume last session", but plan.json on disk is still stale, which is
+// exactly the situation worth warning about before the tab closes.
+//
+// Browsers do not allow a page to customize this dialog's text or buttons (a long-
+// standing anti-abuse restriction) -- calling preventDefault()/setting returnValue only
+// triggers the browser's own generic "Leave site? Changes you made may not be saved"
+// prompt, nothing more specific, and there is no way to offer a "Save" button inside it.
+// The always-visible 💾 Save-plan button in the toolbar already covers that; this is
+// just the safety-net prompt for someone about to close without using it.
+window.addEventListener("beforeunload", (e) => {
+  if (!saveIndicator.classList.contains("dirty")) return;
+  e.preventDefault();
+  e.returnValue = ""; // required for Chrome to show the prompt at all
+});
+
 // Before-tree clicks pick "the folder under review"; After-tree clicks are
 // navigation only and just update the Move Here target (see ui/editor.js).
 function onActivate(id, source) {
