@@ -2,6 +2,8 @@
 
 A local, offline, browser-based tool for **planning** a reorganisation of a shared drive. It never touches the drive itself. You give it a scan of the existing folders and a description of the structure you want. You then work through the old folders one at a time and decide where each one goes. At the end it exports a robocopy script and a searchable "where did it go?" log.
 
+Depends heavily on [Wunderbaum by Mar10](https://github.com/mar10/wunderbaum), which is very excellent and does exactly what I needed it to, big thank-yous for that.
+
 Two panes sit side by side, with a review panel between them:
 
 | Pane | Purpose |
