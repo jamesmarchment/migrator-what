@@ -645,3 +645,122 @@ dialog#export-modal::backdrop {
   cursor: pointer;
   text-align: left;
 }
+
+/* Help modal (see ui/helpModal.js) -- wider and scrollable since it's a
+   condensed reference, not a short confirmation like the other dialogs.
+   A flex column, not a magic-number height split: the dialog itself never
+   scrolls (overflow: hidden) and is capped at 80vh; the title and the
+   footer button take their natural size, and .help-scroll (flex: 1,
+   min-height: 0) absorbs whatever space is left and is the ONLY scrolling
+   region. That holds regardless of how much content ui/helpModal.js grows
+   to -- the previous fixed calc(80vh - 90px) on .help-scroll assumed a
+   title+footer height that drifted out of sync with the real content and
+   produced two nested scrollbars once the content ran long enough that
+   both the dialog and the inner div tried to scroll independently. */
+dialog#help-modal {
+  width: 620px;
+  max-height: 80vh;
+  overflow: hidden;
+  flex-direction: column;
+  position: relative;
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 16px 18px;
+}
+/* The browser's own UA stylesheet hides a <dialog> with
+   `dialog:not([open]) { display: none; }` -- but that rule loses to this
+   file's id selector once we set `display` here, so the flex layout has
+   to be scoped to [open] too, or the modal renders in normal page flow
+   (and squashes everything below it) even while closed. */
+dialog#help-modal:not([open]) {
+  display: none;
+}
+dialog#help-modal[open] {
+  display: flex;
+}
+dialog#help-modal::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+dialog#help-modal h3 {
+  flex: 0 0 auto;
+  margin: 0 0 10px;
+  padding-right: 24px; /* room for the ✕, so a long title never runs under it */
+}
+dialog#help-modal .editor-actions {
+  flex: 0 0 auto;
+}
+.dialog-close-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: #777;
+}
+.dialog-close-x:hover {
+  color: #000;
+}
+.help-scroll {
+  flex: 1 1 auto;
+  min-height: 0; /* lets a flex child actually shrink below its content size, so IT scrolls instead of growing the dialog */
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 14px;
+}
+.help-scroll section {
+  margin-bottom: 16px;
+}
+.help-scroll section:last-child {
+  margin-bottom: 0;
+}
+.help-scroll h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #444;
+}
+.help-scroll p,
+.help-scroll li {
+  line-height: 1.5;
+}
+.help-scroll ol,
+.help-scroll ul {
+  margin: 0 0 6px;
+  padding-left: 20px;
+}
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.help-table td {
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+  border-bottom: 1px solid #eee;
+}
+.help-table td:first-child {
+  white-space: nowrap;
+  width: 1%;
+}
+.help-legend {
+  list-style: none;
+  padding-left: 0;
+}
+.help-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.help-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}

@@ -5,6 +5,7 @@ import { mountBefore, mountAfter, reveal } from "./ui/trees.js";
 import { mountEditor } from "./ui/editor.js";
 import { mountProgressModal, mountMiniProgressBar } from "./ui/progress.js";
 import { mountExportModal } from "./ui/exportModal.js";
+import { mountHelpModal } from "./ui/helpModal.js";
 import { mountEditorPaneResize } from "./ui/paneResize.js";
 import { mountStaleThresholdControl } from "./ui/staleThreshold.js";
 import { formatStamp } from "./model/folderFacts.js";
@@ -50,6 +51,11 @@ function setupLinkToggle(buttonId, refsKey) {
 }
 setupLinkToggle("link-toggle-before", "linkBefore");
 setupLinkToggle("link-toggle-after", "linkAfter");
+
+// Unlike Progress/Export, Help needs no source loaded to be useful -- mount
+// and wire it unconditionally here rather than inside mountTreesOnce().
+const helpApi = mountHelpModal();
+$("btn-help").addEventListener("click", () => helpApi.open());
 
 // "New folder" (see index.html's #btn-create-folder-after, next to the After
 // pane's link-toggle): renaming already works by double-clicking a folder in

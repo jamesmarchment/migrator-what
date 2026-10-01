@@ -236,8 +236,8 @@ Folder colours are the standard yellow folder icon, tinted by review state. Use 
 
 | Icon | Meaning |
 |---|---|
-| 🟨 **Yellow** | **Reviewed.** You have acted on it or decided about it. It should be good to go. |
 | 🟥 **Red** | **Unreviewed.** It hasn't been touched, so it needs attention. |
+| 🟩 **Green** | **Reviewed.** You have acted on it or decided about it. It should be good to go. |
 | 🟦 **Blue** (slightly faded) | **Covered.** It isn't reviewed itself, but one of its ancestors is. It moves with that ancestor, so it is probably going where it should, though nobody has looked at it specifically. |
 | 🟧 **Orange** | **Flagged for follow-up.** You postponed the decision on purpose. Flagging shows in the Before pane only. |
 | ▫️ **Faded, with "— empty"** | **Empty.** The folder and every folder beneath it contain no files at all. This layers on top of the other colours, so an empty folder can also be red, yellow and so on. It relies on the file counts from the robocopy scan. |
