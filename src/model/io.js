@@ -32,14 +32,24 @@ const HANDLE_STORE = "handles";
 // Chrome treats ALL file:// pages as one shared IndexedDB origin, regardless of which
 // directory index.html is actually opened from (verified directly: two different file://
 // folders read and wrote the exact same IndexedDB data). Without this, copying this app
-// to a different folder -- e.g. from a shared drive to a local one, exactly the scenario
-// that surfaced this -- would silently see, and overwrite, the previous install's
-// remembered file handles and autosave snapshot, since nothing here actually distinguished
-// one install from another. `location.pathname` (the real path index.html is running from)
-// namespaces every stored key so separate installs stop colliding, while a single install's
-// own remembered handles/autosave keep working exactly as before.
+// to a different folder -- e.g. from a shared drive to a local one -- would silently see,
+// and overwrite, the previous install's remembered file handles and autosave snapshot,
+// since nothing here actually distinguished one install from another.
+//
+// The namespace is `location.pathname` (the real path index.html is running from) by
+// default, UNLESS config.js sets `installId` explicitly -- that override exists because
+// this only guards against collisions in OUR OWN storage keys; it can't fix Chrome's
+// native Save/Open dialogs defaulting to "wherever anything was last saved in this browser
+// profile", which has nothing to do with this page and is a likely source of "it saved
+// over my other copy's file" even once this namespacing is correct (see startInHint
+// below for the other half of that fix). Setting a distinct `installId` per copy in
+// config.js is a manual guarantee if there's ever doubt the auto-detected path is
+// actually distinguishing two installs (e.g. the same share reachable via two different
+// mapped drive letters, which would otherwise look like two different paths that are
+// really the same file).
 function namespacedKey(key) {
-  const ns = typeof location !== "undefined" && location.pathname ? location.pathname : "";
+  const configId = typeof window !== "undefined" ? window.FOLDER_MIGRATOR_CONFIG?.installId : "";
+  const ns = configId || (typeof location !== "undefined" && location.pathname ? location.pathname : "");
   return `${ns}::${key}`;
 }
 
@@ -129,6 +139,10 @@ export function downloadBlob(filename, content, mimeType) {
 }
 
 function downloadJson(filename, json, { pretty = true } = {}) {
+  // No File System Access handle involved here -- the browser's own download mechanism
+  // always lands in the profile's configured Downloads folder, never next to index.html,
+  // which is itself a common source of "where did my save go" confusion worth logging.
+  console.log(`[folder-migrator] downloading "${filename}" via browser download (no file handle -- lands in your Downloads folder, not next to index.html)`);
   downloadBlob(filename, pretty ? JSON.stringify(json, null, 2) : JSON.stringify(json), "application/json");
 }
 
@@ -150,6 +164,16 @@ function openDb() {
   });
 }
 
+// Logged plainly (not console.debug) since this is exactly what someone troubleshooting
+// "why did this save/load the wrong file" needs to see without first knowing to enable
+// verbose logging. Can't log a full filesystem path for the handle itself -- the File
+// System Access API never exposes one, by design -- but `location.href` (this page's own
+// path) plus the derived namespace and the handle's bare filename is enough to tell
+// whether two installs are actually getting distinct namespaces.
+function logHandleOp(action, key, extra = "") {
+  console.log(`[folder-migrator] ${action} "${key}" handle -- page: ${location.href}, namespace: ${namespacedKey(key)}${extra ? ", " + extra : ""}`);
+}
+
 async function saveHandle(key, handle) {
   try {
     const db = await openDb();
@@ -159,6 +183,7 @@ async function saveHandle(key, handle) {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
+    logHandleOp("remembered", key, `filename: ${handle.name}`);
   } catch (err) {
     console.warn(`Could not remember the "${key}" file handle:`, err);
   }
@@ -167,15 +192,34 @@ async function saveHandle(key, handle) {
 async function loadHandle(key) {
   try {
     const db = await openDb();
-    return await new Promise((resolve, reject) => {
+    const handle = await new Promise((resolve, reject) => {
       const tx = db.transaction(HANDLE_STORE, "readonly");
       const req = tx.objectStore(HANDLE_STORE).get(namespacedKey(key));
       req.onsuccess = () => resolve(req.result ?? null);
       req.onerror = () => reject(req.error);
     });
+    logHandleOp("looked up", key, handle ? `found filename: ${handle.name}` : "found: nothing");
+    return handle;
   } catch {
     return null;
   }
+}
+
+// Picks a directory hint for a fresh Open/Save dialog: prefers whichever OTHER tracked
+// handle this same install already holds, so the dialog opens near this app's own files
+// instead of defaulting to Chrome's browser-wide "last folder saved to anywhere" -- a
+// per-profile default with no relation to this page, and the likely reason a save can
+// land in a different install's folder even once storage is correctly namespaced (see
+// namespacedKey above). Falls back to no hint (the browser's own default) if this
+// install has no other tracked handle yet -- unavoidable for a completely fresh install's
+// very first save.
+async function startInHint(excludeKey) {
+  for (const key of ["source", "plan", "target-structure"]) {
+    if (key === excludeKey) continue;
+    const handle = await loadHandle(key);
+    if (handle) return handle;
+  }
+  return undefined;
 }
 
 async function deleteHandle(key) {
@@ -248,7 +292,7 @@ export async function openTracked(key, { types, fallbackInputEl } = {}) {
       }
     }
     try {
-      const [handle] = await window.showOpenFilePicker({ types });
+      const [handle] = await window.showOpenFilePicker({ types, startIn: await startInHint(key) });
       await saveHandle(key, handle);
       return await handle.getFile();
     } catch (err) {
@@ -307,7 +351,11 @@ export async function savePlan(store) {
         if (perm !== "granted") fileHandle = null;
       }
       if (!fileHandle) {
-        fileHandle = await window.showSaveFilePicker({ suggestedName: "plan.json", types: PLAN_TYPES });
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: "plan.json",
+          types: PLAN_TYPES,
+          startIn: await startInHint("plan"),
+        });
       }
       const writable = await fileHandle.createWritable();
       await writable.write(JSON.stringify(json, null, 2));
@@ -339,7 +387,11 @@ export async function saveSource(json) {
         if (perm !== "granted") fileHandle = null;
       }
       if (!fileHandle) {
-        fileHandle = await window.showSaveFilePicker({ suggestedName: "source.json", types: SOURCE_SAVE_TYPES });
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: "source.json",
+          types: SOURCE_SAVE_TYPES,
+          startIn: await startInHint("source"),
+        });
       }
       const writable = await fileHandle.createWritable();
       // Not pretty-printed, unlike savePlan()'s plan.json: source.json can carry merged
