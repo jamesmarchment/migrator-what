@@ -4,6 +4,17 @@
 import { getErrors } from "../model/validate.js";
 import { formatBytes, extClassName } from "../model/folderFacts.js";
 
+// Plain 365-day years (no leap-year adjustment -- this is a rough "how long ago" read,
+// not a calendar calculation, consistent with isStale()'s own day-granularity clock).
+// Under a year, days alone are still the clearest unit, so this only switches format
+// once there'd otherwise be a 3-4 digit day count.
+function formatAge(days) {
+  if (days < 365) return `${days} day(s) ago`;
+  const years = Math.floor(days / 365);
+  const remainingDays = days % 365;
+  return `${years} year(s), ${remainingDays} day(s) ago`;
+}
+
 const STATUS_LABEL = {
   unchanged: "Unchanged",
   renamed: "Renamed",
@@ -53,7 +64,7 @@ export function mountEditor(container, store, refs) {
       </div>
       <div class="editor-row editor-cols">
         <div class="editor-col"><label>Direct files</label><span data-f="files"></span></div>
-        <div class="editor-col"><label>Descendants (After tree)</label><span data-f="descendants"></span></div>
+        <div class="editor-col"><label>Descendants (files in subfolders)</label><span data-f="descendants"></span></div>
       </div>
       <div class="editor-row facts-row" data-f="factsSection" hidden>
         <label>Folder contents (from loaded facts data)</label>
@@ -61,11 +72,11 @@ export function mountEditor(container, store, refs) {
           ⚠ Loaded from a partial scan -- treat this as a lower bound, not a reliable signal.
         </div>
         <div class="facts-nodata" data-f="factsNoDataNote" hidden>
-          No facts data for this folder (not in the loaded scan, or it was inaccessible during the scan).
+          No facts data available for this folder.
         </div>
         <div data-f="factsBody" hidden>
           <div>Direct: <span data-f="factsDirect"></span></div>
-          <div data-f="factsSubtreeRow" hidden>Subtree (this + everything under it): <span data-f="factsSubtree"></span></div>
+          <div data-f="factsSubtreeRow" hidden>Subtree total: <span data-f="factsSubtree"></span></div>
           <div data-f="factsAgeRow" hidden>Last write anywhere in subtree: <span data-f="factsAge"></span></div>
           <div class="facts-ext-grid" data-f="factsExtList"></div>
         </div>
@@ -217,7 +228,7 @@ export function mountEditor(container, store, refs) {
       f.factsAgeRow.hidden = stale === null;
       if (stale !== null) {
         const days = Math.round((Date.now() - Date.parse(facts.subtreeNewestWriteUtc)) / 86400000);
-        f.factsAge.textContent = `${days} day(s) ago${stale ? " — STALE" : ""}`;
+        f.factsAge.textContent = `${formatAge(days)}${stale ? " — STALE" : ""}`;
       }
     } else {
       f.factsSubtreeRow.hidden = true;

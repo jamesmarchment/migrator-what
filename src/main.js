@@ -590,6 +590,13 @@ function labelRemembered(buttonId, info) {
       if (autosaved) $("resume-banner").hidden = false;
       return;
     }
+    // About to silently re-read a remembered file with no user gesture -- on a slow
+    // machine or a large source.json (handoff.md §10) this can take a visible moment,
+    // and without this there's nothing on screen to distinguish "actively loading" from
+    // "idle, waiting for you to click Re-open" (both look identical: an empty toolbar).
+    // Safe to show before the awaited read/parse below: readFileAsText's FileReader is
+    // genuinely async, so this paints before the blocking JSON.parse that follows it.
+    setIndicator(`Loading ${sourceInfo.file.name}…`, false, { explicit: true });
     await loadSourceIntoStore(sourceInfo.file);
 
     if (planInfo.status === "granted") {
