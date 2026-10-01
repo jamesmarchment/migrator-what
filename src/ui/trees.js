@@ -228,19 +228,18 @@ export function mountAfter(container, store, refs, onActivate) {
         reveal(refs.before, store.srcAncestorChain(e.node.key), refs);
       }
     },
-    dnd: {
-      dragStart: (e) => e.node.key !== store.TRASH && e.node.key !== store.PENDING,
-      dragEnter: (e) => "over",
-      drop: (e) => {
-        try {
-          if (e.node.key === store.TRASH) store.trash(e.sourceNode.key);
-          else if (e.node.key === store.PENDING) store.detach(e.sourceNode.key);
-          else store.moveFolder(e.sourceNode.key, e.node.key);
-        } catch (err) {
-          window.alert(err.message);
-        }
-      },
-    },
+    // Drag-and-drop reparenting (moveFolder/trash/detach via a dropped node) was
+    // deliberately removed -- not needed in practice (the editor panel's "Move Here"
+    // already covers moving a folder), and a stray drag ending outside any
+    // Wunderbaum-recognized drop target would fall through to the browser's default
+    // "navigate to whatever was dragged" behavior, which file://'s unique-per-load
+    // origin then blocks with a console warning ("Unsafe attempt to load URL
+    // .../index.html from frame with URL .../index.html") -- harmless, since Chrome
+    // blocks the navigation outright, but not worth the surface area to keep around
+    // for a feature that isn't used. Without a `dnd.dragStart` callback, Wunderbaum's
+    // own dnd extension defaults to disabled (dragStart: null) and never makes nodes
+    // draggable in the first place, so this isn't a workaround -- there's no drag to
+    // go stray anymore.
     edit: {
       trigger: ["clickActive", "F2"],
       apply: (e) => {
