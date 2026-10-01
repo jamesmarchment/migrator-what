@@ -29,6 +29,20 @@ const DB_STORE = "autosave";
 const DB_KEY = "current-plan";
 const HANDLE_STORE = "handles";
 
+// Chrome treats ALL file:// pages as one shared IndexedDB origin, regardless of which
+// directory index.html is actually opened from (verified directly: two different file://
+// folders read and wrote the exact same IndexedDB data). Without this, copying this app
+// to a different folder -- e.g. from a shared drive to a local one, exactly the scenario
+// that surfaced this -- would silently see, and overwrite, the previous install's
+// remembered file handles and autosave snapshot, since nothing here actually distinguished
+// one install from another. `location.pathname` (the real path index.html is running from)
+// namespaces every stored key so separate installs stop colliding, while a single install's
+// own remembered handles/autosave keep working exactly as before.
+function namespacedKey(key) {
+  const ns = typeof location !== "undefined" && location.pathname ? location.pathname : "";
+  return `${ns}::${key}`;
+}
+
 export function readFileAsText(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -141,7 +155,7 @@ async function saveHandle(key, handle) {
     const db = await openDb();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(HANDLE_STORE, "readwrite");
-      tx.objectStore(HANDLE_STORE).put(handle, key);
+      tx.objectStore(HANDLE_STORE).put(handle, namespacedKey(key));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -155,7 +169,7 @@ async function loadHandle(key) {
     const db = await openDb();
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(HANDLE_STORE, "readonly");
-      const req = tx.objectStore(HANDLE_STORE).get(key);
+      const req = tx.objectStore(HANDLE_STORE).get(namespacedKey(key));
       req.onsuccess = () => resolve(req.result ?? null);
       req.onerror = () => reject(req.error);
     });
@@ -169,7 +183,7 @@ async function deleteHandle(key) {
     const db = await openDb();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(HANDLE_STORE, "readwrite");
-      tx.objectStore(HANDLE_STORE).delete(key);
+      tx.objectStore(HANDLE_STORE).delete(namespacedKey(key));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -362,7 +376,7 @@ export async function loadAutosavedPlan() {
     const db = await openDb();
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, "readonly");
-      const req = tx.objectStore(DB_STORE).get(DB_KEY);
+      const req = tx.objectStore(DB_STORE).get(namespacedKey(DB_KEY));
       req.onsuccess = () => resolve(req.result ?? null);
       req.onerror = () => reject(req.error);
     });
@@ -376,7 +390,7 @@ async function writeAutosave(planJson) {
   const db = await openDb();
   await new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, "readwrite");
-    tx.objectStore(DB_STORE).put(planJson, DB_KEY);
+    tx.objectStore(DB_STORE).put(planJson, namespacedKey(DB_KEY));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
