@@ -27,7 +27,7 @@ export function mountHelpModal() {
       <section>
         <h4>What you can do to a folder</h4>
         <table class="help-table">
-          <tr><td><b>Move it</b></td><td>Pick a destination in After, then click <b>Move Here</b>. Or drag it onto a folder in the After tree.</td></tr>
+          <tr><td><b>Move it</b></td><td>Pick a destination in After, then click <b>Move Here</b>. Puts the folder inside of the selected folder.</td></tr>
           <tr><td><b>Rename it</b></td><td>Edit <b>Folder Name</b> in the Review panel. Or in the After tree, click an already-selected folder again, or press <b>F2</b>.</td></tr>
           <tr><td><b>Fill a target-structure slot</b></td><td>Select the real folder in Before, click the purple slot in After, then click <b>These Are Equivalent</b>.</td></tr>
           <tr><td><b>Create a new folder</b></td><td>Click the <b>➕</b> button beside the After pane's 🔗 toggle. It opens for renaming immediately.</td></tr>

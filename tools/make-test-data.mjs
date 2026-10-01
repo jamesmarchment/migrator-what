@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 // Generates a small synthetic source.json for exercising the review tool's edge cases
 // (deep nesting, wide fan-out, name collisions, illegal names) at a scale that's fast
-// to build/reload during development -- NOT a full-scale (~100k) realism simulation.
+// to build/reload during development -- NOT a full-scale (~100k) realism simulation,
+// unless --withFacts is used (see below) to reproduce the large-scale, facts-enriched
+// scenario in handoff.md §10 for local load/save benchmarking.
 //
 // Usage:
 //   node tools/make-test-data.mjs [--count 3000] [--maxDepth 12] [--wideFanoutFolders 3]
 //                                  [--collisionRate 0.02] [--illegalNameRate 0.01]
-//                                  [--seed 1] [--out test-source.json]
+//                                  [--seed 1] [--out test-source.json] [--withFacts 0]
+//
+// --withFacts 1 attaches a `.facts`/`.extensions` pair to every folder, in exactly the
+// shape store.js's exportSourceJson() writes and folderFacts.js's parseDirFactsRecords/
+// parseExtLongRecords produce -- i.e. this simulates an already-merged, already-saved
+// source.json, not a fresh CSV import. Combine with a large --count/--maxDepth (e.g.
+// --count 105000 --maxDepth 15) to approximate the office share's ~54MB file for
+// tools/bench-load.mjs.
 
 import { writeFileSync } from "node:fs";
 
@@ -19,6 +28,7 @@ function parseArgs(argv) {
     illegalNameRate: 0.01,
     seed: 1,
     out: "test-source.json",
+    withFacts: 0,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -53,8 +63,73 @@ const WORDS = [
 const RESERVED_NAMES = ["CON", "PRN", "AUX", "NUL", "COM1", "LPT1"];
 const ILLEGAL_CHARS = ["<", ">", ":", '"', "|", "?", "*"];
 
+// Common office-share extensions, roughly in realistic frequency order (used with a
+// power-law-ish pick below so most folders get 0-3 of these, a long tail gets many more).
+const EXTENSIONS = [
+  "pdf", "docx", "xlsx", "pptx", "jpg", "png", "msg", "txt", "csv", "zip",
+  "doc", "xls", "ppt", "mp4", "mov", "dwg", "html", "xml", "json", "bak",
+];
+
 function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
+}
+
+// Random ISO-UTC timestamp between `minMs` and `maxMs` (epoch ms), truncated to whole
+// seconds -- matches the "no sub-millisecond precision needed" note in folderFacts.js.
+function randomIsoBetween(rng, minMs, maxMs) {
+  const ms = minMs + Math.floor(rng() * (maxMs - minMs));
+  return new Date(ms).toISOString();
+}
+
+// Attaches `.facts`/`.extensions` to every folder, in exactly the shape store.js's
+// exportSourceJson() writes (facts: {directFiles, directBytes, subtreeFiles, subtreeBytes,
+// subtreeOldestWriteUtc, subtreeNewestWriteUtc}; extensions: [{extension, count, bytes}]).
+// Subtree numbers are rough (direct + a random multiple), not an exact rollup -- fine for
+// a load/save performance benchmark, which only cares about realistic shape and byte size.
+function attachFacts(folders, rng) {
+  const now = Date.now();
+  const fiveYearsMs = 5 * 365 * 24 * 60 * 60 * 1000;
+
+  for (const f of folders) {
+    const directFiles = f.files ?? 0;
+    const directBytes = directFiles === 0 ? 0 : Math.floor(rng() * directFiles * 2_000_000);
+    const subtreeMultiplier = 1 + Math.floor(rng() ** 2 * 50); // most folders near 1x, some much larger
+    const subtreeFiles = directFiles * subtreeMultiplier;
+    const subtreeBytes = directBytes * subtreeMultiplier;
+
+    let subtreeOldestWriteUtc = null;
+    let subtreeNewestWriteUtc = null;
+    if (subtreeFiles > 0) {
+      const oldestMs = now - fiveYearsMs + Math.floor(rng() * fiveYearsMs);
+      subtreeOldestWriteUtc = randomIsoBetween(rng, oldestMs, now);
+      subtreeNewestWriteUtc = randomIsoBetween(rng, Date.parse(subtreeOldestWriteUtc), now);
+    }
+
+    f.facts = {
+      directFiles,
+      directBytes,
+      subtreeFiles,
+      subtreeBytes,
+      subtreeOldestWriteUtc,
+      subtreeNewestWriteUtc,
+    };
+
+    // Most folders: 0-2 distinct extensions (biased low via rng()**2); a long tail goes
+    // up to ~10. Tuned so ~105k folders lands near the office share's ~54MB (handoff.md
+    // §10) -- see tools/bench-load.mjs's printed file size if re-tuning this.
+    const extCount = directFiles === 0 ? 0 : Math.floor(rng() ** 2 * 7);
+    if (extCount > 0) {
+      const chosen = new Set();
+      while (chosen.size < Math.min(extCount, EXTENSIONS.length)) chosen.add(pick(rng, EXTENSIONS));
+      f.extensions = [...chosen].map((extension) => ({
+        extension,
+        count: 1 + Math.floor(rng() * Math.max(1, directFiles)),
+        bytes: Math.floor(rng() * 50_000_000),
+      }));
+    } else {
+      f.extensions = [];
+    }
+  }
 }
 
 function makeName(rng, i) {
@@ -62,7 +137,7 @@ function makeName(rng, i) {
   return rng() < 0.3 ? `${base} ${i}` : base;
 }
 
-function makeTestData({ count, maxDepth, wideFanoutFolders, collisionRate, illegalNameRate, seed }) {
+function makeTestData({ count, maxDepth, wideFanoutFolders, collisionRate, illegalNameRate, seed, withFacts }) {
   const rng = makeRng(seed);
   const folders = [];
   // frontier: ids eligible to receive new children, paired with their current depth.
@@ -113,20 +188,32 @@ function makeTestData({ count, maxDepth, wideFanoutFolders, collisionRate, illeg
     }
   }
 
-  return {
+  if (withFacts) attachFacts(folders, rng);
+
+  const source = {
     version: 1,
     root: "\\\\test-server\\share",
     separator: "\\",
     rootFiles: 0,
     folders,
   };
+  if (withFacts) {
+    source.factsStamp = "20260929-233732";
+    source.factsPartial = false;
+    source.factsHasSubtree = true;
+    source.extensionsStamp = "20260929-233732";
+    source.extensionsPartial = false;
+  }
+  return source;
 }
 
 const args = parseArgs(process.argv.slice(2));
 const source = makeTestData(args);
-writeFileSync(args.out, JSON.stringify(source, null, 2));
-console.log(`Generated ${source.folders.length} folders -> ${args.out}`);
+const json = JSON.stringify(source, null, 2);
+writeFileSync(args.out, json);
+console.log(`Generated ${source.folders.length} folders -> ${args.out} (${(json.length / 1_000_000).toFixed(1)} MB)`);
 console.log(
   `count=${args.count} maxDepth=${args.maxDepth} wideFanoutFolders=${args.wideFanoutFolders} ` +
-    `collisionRate=${args.collisionRate} illegalNameRate=${args.illegalNameRate} seed=${args.seed}`
+    `collisionRate=${args.collisionRate} illegalNameRate=${args.illegalNameRate} seed=${args.seed} ` +
+    `withFacts=${args.withFacts}`
 );

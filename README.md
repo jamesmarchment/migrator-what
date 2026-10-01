@@ -289,7 +289,7 @@ The After pane does not show orange for flagged folders. Use the Before pane for
 
 This whole section is extra. Nothing here is required for the core planning workflow, and the tool works exactly the same without it — the capability to read this data is additional, not required.
 
-If you also have a scan from a separate drive-facts PowerShell pipeline (a folder **rollup CSV**, e.g. `dirfacts-rollup-<stamp>.csv`, and/or a **file-type breakdown CSV**, e.g. `extlong-<stamp>.csv`), you can load it in to see which folders look stale and what's actually inside them. This is not something this tool produces — it comes from elsewhere (`Get-DriveFacts.ps1` / `Invoke-DirRollup.ps1`, outside this repo). The paths in those CSVs must match the paths in your loaded `source.json` exactly; if they were scanned from a different root, re-scan with robocopy so the two line up.
+If you also have a scan from a separate drive-facts PowerShell pipeline (a folder **rollup CSV**, e.g. `dirfacts-rollup-<stamp>.csv`, and/or a **file-type breakdown CSV**, e.g. `extlong-<stamp>.csv`), you can load it in to see which folders look stale and what's actually inside them. (The tools to create these CSVs are not currently included. I plan to add them in a future version, and revise how they work, currently they are just a quick-and-dirty solution to the specifics of the first use case.) The paths in those CSVs must match the paths in your loaded `source.json` exactly; if they were scanned from a different root, re-scan with robocopy so the two line up.
 
 ### Loading it
 

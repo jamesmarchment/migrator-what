@@ -114,8 +114,8 @@ export function downloadBlob(filename, content, mimeType) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-function downloadJson(filename, json) {
-  downloadBlob(filename, JSON.stringify(json, null, 2), "application/json");
+function downloadJson(filename, json, { pretty = true } = {}) {
+  downloadBlob(filename, pretty ? JSON.stringify(json, null, 2) : JSON.stringify(json), "application/json");
 }
 
 // --- shared IndexedDB (autosave snapshot + remembered file handles) ---
@@ -328,7 +328,12 @@ export async function saveSource(json) {
         fileHandle = await window.showSaveFilePicker({ suggestedName: "source.json", types: SOURCE_SAVE_TYPES });
       }
       const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify(json, null, 2));
+      // Not pretty-printed, unlike savePlan()'s plan.json: source.json can carry merged
+      // folder-facts data at real-share scale (~105k folders, tens of MB -- see
+      // handoff.md §10), where 2-space indentation both roughly doubles the bytes
+      // written now and, more importantly, the bytes every future JSON.parse has to
+      // chew through on each later load. Nobody hand-edits source.json.
+      await writable.write(JSON.stringify(json));
       await writable.close();
       await saveHandle("source", fileHandle);
       return { method: "fs-access" };
@@ -337,7 +342,7 @@ export async function saveSource(json) {
       console.warn("File System Access save failed, falling back to download:", err);
     }
   }
-  downloadJson("source.json", json);
+  downloadJson("source.json", json, { pretty: false });
   return { method: "download" };
 }
 

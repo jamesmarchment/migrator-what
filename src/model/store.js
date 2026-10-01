@@ -25,10 +25,40 @@ function fnv1aHash(str) {
   return (h >>> 0).toString(16);
 }
 
+// Feeds each folder's id/parentId/name characters straight into a per-folder running
+// FNV-1a hash (no template-literal/join string allocation per folder), then XORs each
+// folder's hash into one accumulator -- order-independent, so folder order in the
+// source JSON never changes the result, without needing the sort the previous
+// implementation used to get that same property.
+//
+// Measured against the original (`[...folders].sort(...).join("\n")` then one
+// fnv1aHash call) on a 105k-folder synthetic dataset (tools/make-test-data.mjs
+// --withFacts): the original was ~20-30ms; an earlier attempt here that called
+// fnv1aHash() once per folder (template-literal string + hex round-trip per call)
+// was actually ~2-3x SLOWER (~60-70ms) despite being O(n) vs O(n log n) -- V8's
+// native sort/join have low constants, and 105k separate allocations/calls add real
+// overhead at this scale. This allocation-free version (no sort, no per-folder
+// strings) is the one that's actually faster in practice, ~9-13ms. Re-benchmark with
+// tools/bench-load.mjs before changing this again -- the "obviously better" Big-O
+// didn't hold up the first time.
 function computeSourceHash(folders) {
-  const sorted = [...folders].sort((a, b) => (a.id < b.id ? -1 : 1));
-  const s = sorted.map((f) => `${f.id}|${f.parentId ?? ""}|${f.name}`).join("\n");
-  return fnv1aHash(s);
+  let acc = 0;
+  for (const f of folders) {
+    let h = 0x811c9dc5;
+    h = fnv1aStep(h, f.id);
+    h = fnv1aStep(fnv1aStep(h, "|"), f.parentId ?? "");
+    h = fnv1aStep(fnv1aStep(h, "|"), f.name);
+    acc ^= h >>> 0;
+  }
+  return (acc >>> 0).toString(16);
+}
+
+function fnv1aStep(h, str) {
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h;
 }
 
 export function createStore() {
@@ -47,6 +77,13 @@ export function createStore() {
   // unknown/inferred file count). Lazily computed per id, memoized here since
   // source is immutable after init() -- cleared whenever it isn't.
   let emptySubtreeCache = new Map();
+  // id -> full source path string. srcPath() walks the ancestor chain on every call
+  // with no reuse between calls -- cheap for a single lookup (e.g. the editor panel),
+  // but mergeFacts()/mergeExtensions() call it once per folder (O(n) calls), which
+  // without this cache costs O(n*depth) total. Same lifecycle as emptySubtreeCache:
+  // valid as long as source folders' id/parentId/name are immutable, cleared on
+  // init()/unload().
+  let srcPathCache = new Map();
 
   // --- optional folder-facts overlay (see model/folderFacts.js) ---
   // Supplemental to the loaded source, not to the plan: reset on init()/
@@ -119,6 +156,7 @@ export function createStore() {
     }
     sourceHash = computeSourceHash(sourceJson.folders);
     emptySubtreeCache = new Map();
+    srcPathCache = new Map();
     // A previously-enriched source.json (see exportSourceJson()) carries its
     // own facts/extensions merge forward as plain folder properties, already
     // reconstructed above -- just restore the bookkeeping fields that
@@ -157,6 +195,7 @@ export function createStore() {
     srcChildren = new Map();
     sourceHash = "";
     emptySubtreeCache = new Map();
+    srcPathCache = new Map();
     resetFacts();
     newPlan(); // also resets the plan and emits "reset", same as store.js's own init() does
   }
@@ -266,17 +305,31 @@ export function createStore() {
   }
 
   function srcPath(id) {
+    const cached = srcPathCache.get(id);
+    if (cached !== undefined) return cached;
     const parts = [];
     let cur = id;
     let guard = 0;
     while (cur) {
+      // An ancestor already resolved (e.g. by an earlier sibling's call, or mergeFacts/
+      // mergeExtensions having already processed it) lets the walk stop early instead
+      // of continuing to the root -- this is what makes a full iteration over every
+      // folder (mergeFacts/mergeExtensions) O(n) instead of O(n*depth).
+      const ancestorHit = srcPathCache.get(cur);
+      if (ancestorHit !== undefined) {
+        const full = parts.length ? ancestorHit + "\\" + parts.join("\\") : ancestorHit;
+        srcPathCache.set(id, full);
+        return full;
+      }
       if (++guard > 10000) throw new Error(`srcPath: cycle detected reaching ${id}`);
       const f = byId.get(cur);
       if (!f) break;
       parts.unshift(f.name);
       cur = f.parentId;
     }
-    return sourceRoot + "\\" + parts.join("\\");
+    const path = sourceRoot + "\\" + parts.join("\\");
+    srcPathCache.set(id, path);
+    return path;
   }
 
   function getSourceChildren(parentId) {
